@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>SSP Hindi Call Bot (No-Speech Fixed)</title>
+    <style>
+        :root {
+            --bg: #0b0b0e;
+            --card: #121218;
+            --line: rgba(255, 255, 255, .10);
+            --text: #f3f4f6;
+            --muted: #b9bcc6;
+            --good: #34d399;
+            --warn: #fbbf24;
+            --bad: #fb7185;
+            --r: 16px;
+        }
+
+        * {
+            box-sizing: border-box
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
+
+        .app {
+            width: min(420px, 100%);
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: var(--r);
+            padding: 16px;
+        }
+
+        .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            font-size: 12px;
+            color: var(--muted);
+            border: 1px solid var(--line);
+            padding: 6px 10px;
+            border-radius: 999px;
+            white-space: nowrap;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .screen {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+            background: rgba(255, 255, 255, .03);
+            min-height: 92px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .bigNumber {
+            font-size: 26px;
+            letter-spacing: 2px;
+            font-weight: 700;
+            line-height: 1.2;
+            word-break: break-word;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+
+        .hint {
+            font-size: 13px;
+            color: var(--muted)
+        }
+
+        .statusLine {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            background: var(--muted);
+        }
+
+        .dot.live {
+            background: var(--good)
+        }
+
+        .dot.ring {
+            background: var(--warn)
+        }
+
+        .dot.dead {
+            background: var(--bad)
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 12px 12px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .btn:disabled {
+            opacity: .5;
+            cursor: not-allowed
+        }
+
+        .btn.good {
+            background-color: rgba(52, 211, 153, .55)
+        }
+
+        .btn.bad {
+            background-color: rgba(251, 113, 133, .55)
+        }
+
+        .pad {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, .02);
+            border: 1px solid var(--line);
+            color: var(--text);
+            padding: 14px 0;
+            border-radius: 14px;
+            font-size: 18px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .miniRow {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .mini {
+            flex: 1;
+            background: rgba(255, 255, 255, .02);
+            border: 1px solid var(--line);
+            color: var(--text);
+            padding: 10px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .callCard {
+            margin-top: 12px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 12px;
+            background: rgba(255, 255, 255, .02);
+        }
+
+        .callTitle {
+            margin: 0 0 8px;
+            font-size: 14px;
+            color: var(--muted);
+            font-weight: 700;
+        }
+
+        .callInfo {
+            font-size: 14px;
+            line-height: 1.4;
+            color: var(--text);
+        }
+
+        .callInfo small {
+            color: var(--muted);
+            display: block;
+            margin-top: 6px
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="top">
+            <div class="badge">SSP Hindi Call Bot</div>
+            <div class="badge" id="modeBadge">MODE: DIAL</div>
+        </div>
+
+        <div class="screen">
+            <div class="bigNumber" id="numberView">__________</div>
+            <div class="hint" id="hintView">10 digit number dial karo. (Keyboard: 0-9, Backspace, Enter)</div>
+            <div class="statusLine">
+                <span><span class="dot" id="statusDot"></span><span id="statusText">Idle</span></span>
+                <span id="timerText" class="badge" style="padding:4px 8px;border-radius:10px;">00:00</span>
+            </div>
+        </div>
+
+        <div id="dialArea">
+            <div class="pad">
+                <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key"
+                    data-k="3">3</button>
+                <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key"
+                    data-k="6">6</button>
+                <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key"
+                    data-k="9">9</button>
+                <button class="key" data-k="*">*</button><button class="key" data-k="0">0</button><button class="key"
+                    data-k="#">#</button>
+            </div>
+            <div class="miniRow">
+                <button class="mini" id="backBtn">Backspace</button>
+                <button class="mini" id="clearBtn">Clear</button>
+            </div>
+            <div class="row">
+                <button class="btn good" id="callBtn" disabled>Call</button>
+            </div>
+            <div class="hint" style="margin-top:10px;">
+                Chrome/Edge recommended. Best: HTTPS ya localhost.
+            </div>
+        </div>
+
+        <div id="callArea" style="display:none;">
+            <div class="callCard">
+                <p class="callTitle">Live Call</p>
+                <div class="callInfo" id="callInfoText">
+                    Connecting...
+                    <small>Mic allow karna zaroori hai.</small>
+                </div>
+            </div>
+            <div class="row">
+                <button class="btn bad" id="endBtn">End</button>
+            </div>
+            <div class="hint" style="margin-top:10px;">
+                Keyboard: Esc = End / Back to Dial
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (() => {
+            // ===== Hindi Auto Reply JSON =====
+            const AUTO_REPLY_JSON = {
+                default: "Hello! I am SSP Auto Reply. You can ask about: classes, fees, timetable, or contact.",
+                rules: [
+                    { keywords: ["hello", "hi", "hey"], reply: "Hello! How can I help you today?" },
+                    { keywords: ["help", "support"], reply: "Sure. Ask me about classes, fees, timetable, or contact." },
+                    { keywords: ["class", "classes", "lecture", "lectures"], reply: "Classes are available on Saksham Study Point. Which subject: physics, chemistry, or math?" },
+                    { keywords: ["fee", "fees", "price", "cost"], reply: "Most resources are free. For special batches, please check the official SSP page." },
+                    { keywords: ["timetable", "schedule", "timing", "time table"], reply: "The timetable depends on the batch. Say: JEE, Board, or Practice." },
+                    { keywords: ["jee"], reply: "For JEE: daily practice, PYQs, and mock tests. Do you want mains or advanced?" },
+                    { keywords: ["board"], reply: "For Board exams: concepts, examples, and previous year questions. Which class are you in?" },
+                    { keywords: ["contact", "whatsapp", "number"], reply: "You can contact SSP via the official website or WhatsApp channel. Which one do you prefer?" },
+                    { keywords: ["thanks", "thank you"], reply: "You’re welcome! Anything else you want to ask?" }
+                ]
+            };
+
+            // ===== Settings =====
+            const AUTO_END_SILENCE_MS = 30000;      // 30 sec
+            const LISTEN_RESTART_DELAY = 750;       // stable restart gap
+            const NOISE_MIN_CHARS = 3;
+
+            // ===== UI =====
+            const modeBadge = document.getElementById("modeBadge");
+            const numberView = document.getElementById("numberView");
+            const hintView = document.getElementById("hintView");
+            const dialArea = document.getElementById("dialArea");
+            const callArea = document.getElementById("callArea");
+            const callBtn = document.getElementById("callBtn");
+            const backBtn = document.getElementById("backBtn");
+            const clearBtn = document.getElementById("clearBtn");
+            const endBtn = document.getElementById("endBtn");
+            const statusDot = document.getElementById("statusDot");
+            const statusText = document.getElementById("statusText");
+            const timerText = document.getElementById("timerText");
+            const callInfoText = document.getElementById("callInfoText");
+
+            // ===== State =====
+            let digits = "";
+            let mode = "DIAL"; // DIAL | RINGING | LIVE | ENDED
+            let callTimer = null;
+            let callSeconds = 0;
+
+            // Audio
+            let audioCtx = null;
+            let ringInterval = null;
+
+            // Speech Recognition
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let recognizer = null;
+            let listening = false;
+            let stopAll = false;
+
+            // Silence watcher
+            let silenceTimer = null;
+            let lastHeardAt = 0;
+
+            // ===== Audio helpers =====
+            function initAudio() {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            function beep(freq, durationSec, gainVal = 0.16) {
+                if (!audioCtx) return;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = "sine";
+                osc.frequency.value = freq;
+
+                const t = audioCtx.currentTime;
+                gain.gain.setValueAtTime(0.0001, t);
+                gain.gain.exponentialRampToValueAtTime(gainVal, t + 0.01);
+                gain.gain.exponentialRampToValueAtTime(0.0001, t + durationSec);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(t + durationSec + 0.02);
+            }
+
+            function startRinging() {
+                stopRinging();
+                initAudio();
+                ringInterval = setInterval(() => {
+                    beep(440, 0.18, 0.14);
+                    setTimeout(() => beep(660, 0.18, 0.14), 220);
+                }, 1200);
+            }
+
+            function stopRinging() {
+                if (ringInterval) clearInterval(ringInterval);
+                ringInterval = null;
+            }
+
+            function playCallEndedTone() {
+                // quick "tu-tu" end tone
+                initAudio();
+                beep(520, 0.14, 0.16);
+                setTimeout(() => beep(390, 0.16, 0.16), 180);
+            }
+
+            // ===== UI helpers =====
+            function setStatus(text, dotClass) {
+                statusText.textContent = text;
+                statusDot.className = "dot" + (dotClass ? " " + dotClass : "");
+            }
+
+            function setMode(newMode) {
+                mode = newMode;
+                modeBadge.textContent = "MODE: " + newMode;
+
+                if (newMode === "DIAL") {
+                    dialArea.style.display = "";
+                    callArea.style.display = "none";
+                    setStatus("Idle", "");
+                    stopTimer();
+                    stopRinging();
+                    stopListening();
+                    clearSilenceWatcher();
+                    callInfoText.innerHTML = "Dial ready.<small>10 digit number enter karo.</small>";
+                    endBtn.textContent = "End";
+                }
+                if (newMode === "RINGING") {
+                    dialArea.style.display = "none";
+                    callArea.style.display = "";
+                    setStatus("Ringing...", "ring");
+                    clearSilenceWatcher();
+                }
+                if (newMode === "LIVE") {
+                    dialArea.style.display = "none";
+                    callArea.style.display = "";
+                    setStatus("Connected", "live");
+                    startTimer();
+                    startSilenceWatcher();
+                }
+                if (newMode === "ENDED") {
+                    dialArea.style.display = "none";
+                    callArea.style.display = "";
+                    setStatus("Call Ended", "dead");
+                    stopRinging();
+                    stopTimer();
+                    stopListening();
+                    clearSilenceWatcher();
+                    endBtn.textContent = "Back to Dial";
+                }
+            }
+
+            function renderNumber() {
+                const pad = "__________";
+                numberView.textContent = (digits + pad).slice(0, 10);
+                callBtn.disabled = digits.length !== 10;
+            }
+
+            // ===== Timer =====
+            function startTimer() {
+                stopTimer();
+                callSeconds = 0;
+                timerText.textContent = "00:00";
+                callTimer = setInterval(() => {
+                    callSeconds += 1;
+                    const mm = String(Math.floor(callSeconds / 60)).padStart(2, "0");
+                    const ss = String(callSeconds % 60).padStart(2, "0");
+                    timerText.textContent = `${mm}:${ss}`;
+                }, 1000);
+            }
+            function stopTimer() {
+                if (callTimer) clearInterval(callTimer);
+                callTimer = null;
+                timerText.textContent = "00:00";
+            }
+
+            // ===== Auto reply =====
+            function getAutoReply(userText) {
+                const t = (userText || "").toLowerCase().trim();
+                if (!t) return AUTO_REPLY_JSON.default;
+                for (const r of AUTO_REPLY_JSON.rules) {
+                    for (const kw of r.keywords) {
+                        if (t.includes(String(kw).toLowerCase())) return r.reply;
+                    }
+                }
+                return AUTO_REPLY_JSON.default;
+            }
+
+            // ===== TTS =====
+            function speak(text) {
+                if (!("speechSynthesis" in window)) return Promise.resolve();
+
+                return new Promise(resolve => {
+
+                    const synth = window.speechSynthesis;
+
+                    // Wait for voices to load properly
+                    let voices = synth.getVoices();
+                    if (!voices.length) {
+                        synth.onvoiceschanged = () => {
+                            voices = synth.getVoices();
+                        };
+                    }
+
+                    const utter = new SpeechSynthesisUtterance(text);
+
+                    // Pick best English voice available
+                    const preferred =
+                        voices.find(v => v.name.includes("Google")) ||
+                        voices.find(v => v.lang.includes("en")) ||
+                        voices[0];
+
+                    if (preferred) utter.voice = preferred;
+
+                    utter.lang = "en-US";
+                    utter.rate = 0.95;   // smooth speed
+                    utter.pitch = 1;
+
+                    utter.onend = () => resolve();
+                    utter.onerror = () => resolve();
+
+                    synth.speak(utter);
+                });
+            }
+
+            // ===== Silence watcher =====
+            function startSilenceWatcher() {
+                clearSilenceWatcher();
+                lastHeardAt = Date.now();
+                silenceTimer = setInterval(() => {
+                    if (mode !== "LIVE" || stopAll) return;
+                    const now = Date.now();
+                    if (now - lastHeardAt >= AUTO_END_SILENCE_MS) {
+                        callInfoText.innerHTML = "⏳ 30 sec tak awaaz nahi aayi. Call auto end ho rahi hai.<small>Back to Dial ke liye button dabao.</small>";
+                        endCall(true);
+                    }
+                }, 500);
+            }
+            function clearSilenceWatcher() {
+                if (silenceTimer) clearInterval(silenceTimer);
+                silenceTimer = null;
+            }
+
+            // ===== Speech recognition loop (no-speech FIX) =====
+            function setupRecognizer() {
+                if (!SpeechRecognition) return null;
+
+                const r = new SpeechRecognition();
+                r.lang = "en-IN";
+                r.interimResults = false;
+                r.continuous = false;
+
+                r.onstart = () => {
+                    listening = true;
+                    callInfoText.innerHTML = "🎙️ Sun raha hoon... boliye.<small>30 sec silence me call auto end ho jayegi.</small>";
+                };
+
+                r.onerror = (e) => {
+                    listening = false;
+                    const err = (e && e.error) ? e.error : "unknown";
+
+                    if (err === "no-speech") {
+                        // THIS is the fix: treat it as normal silence, restart gently
+                        callInfoText.innerHTML = "🤫 Kuch clear sunai nahi diya. Phir se boliye…<small>Tip: mic ke paas bolna, aur bolna start jaldi karo.</small>";
+                        if (!stopAll && mode === "LIVE") {
+                            setTimeout(() => safeListenLoop(), LISTEN_RESTART_DELAY);
+                        }
+                        return;
+                    }
+
+                    callInfoText.innerHTML =
+                        "Mic error: <b>" + err + "</b>" +
+                        "<small>Fix: Chrome/Edge + HTTPS/localhost + mic Allow + Windows mic privacy ON.</small>";
+
+                    // keep trying except hard-block
+                    if (!stopAll && mode === "LIVE" && err !== "not-allowed" && err !== "service-not-allowed") {
+                        setTimeout(() => safeListenLoop(), LISTEN_RESTART_DELAY);
+                    }
+                };
+
+                r.onend = () => {
+                    listening = false;
+                    if (!stopAll && mode === "LIVE") {
+                        setTimeout(() => safeListenLoop(), LISTEN_RESTART_DELAY);
+                    }
+                };
+
+                r.onresult = async (event) => {
+                    let finalText = "";
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const res = event.results[i];
+                        if (res.isFinal) finalText += res[0].transcript;
+                    }
+                    finalText = (finalText || "").trim();
+
+                    if (finalText) {
+                        lastHeardAt = Date.now();
+
+                        if (finalText.length < NOISE_MIN_CHARS) {
+                            hintView.textContent = "Ignored noise: " + finalText;
+                            if (!stopAll && mode === "LIVE") setTimeout(() => safeListenLoop(), LISTEN_RESTART_DELAY);
+                            return;
+                        }
+
+                        hintView.textContent = "Aapne bola: " + finalText;
+                        callInfoText.innerHTML = "✅ Received. Reply aa raha hai…<small>" + finalText + "</small>";
+
+                        const reply = getAutoReply(finalText);
+                        await speak(reply);
+
+                        if (!stopAll && mode === "LIVE") {
+                            setTimeout(() => safeListenLoop(), LISTEN_RESTART_DELAY);
+                        }
+                    }
+                };
+
+                return r;
+            }
+
+            function stopListening() {
+                try { if (recognizer) recognizer.stop(); } catch (_) { }
+                listening = false;
+            }
+
+            function safeListenLoop() {
+                if (stopAll || mode !== "LIVE") return;
+
+                if (!SpeechRecognition) {
+                    callInfoText.innerHTML = "SpeechRecognition supported nahi hai.<small>Chrome/Edge use karo.</small>";
+                    return;
+                }
+                if (listening) return;
+
+                if (!recognizer) recognizer = setupRecognizer();
+                if (!recognizer) return;
+
+                initAudio();
+                try {
+                    recognizer.start();
+                } catch (e) {
+                    setTimeout(() => {
+                        if (stopAll || mode !== "LIVE") return;
+                        try { recognizer.start(); } catch (_) { }
+                    }, LISTEN_RESTART_DELAY);
+                }
+            }
+
+            // ===== Dial actions =====
+            function addDigit(d) {
+                if (mode !== "DIAL") return;
+                if (digits.length < 10) {
+                    digits += d;
+                    renderNumber();
+                }
+            }
+            function backspace() {
+                if (mode !== "DIAL") return;
+                digits = digits.slice(0, -1);
+                renderNumber();
+            }
+            function clearAll() {
+                if (mode !== "DIAL") return;
+                digits = "";
+                renderNumber();
+            }
+
+            // ===== Call flow =====
+            function startCall() {
+                if (digits.length !== 10) return;
+
+                stopAll = false;
+                initAudio(); // user gesture from click/keypress helps permissions
+                hintView.textContent = "Calling " + digits + "...";
+
+                setMode("RINGING");
+                callInfoText.innerHTML = "📞 Ringing...<small>5 seconds me call pick ho jayegi.</small>";
+                startRinging();
+
+                setTimeout(async () => {
+                    if (mode !== "RINGING") return;
+                    stopRinging();
+                    setMode("LIVE");
+                    const greet = "नमस्ते! मैं SSP Auto Reply हूँ। आप क्या पूछना चाहेंगे?";
+                    await speak(greet);
+                    safeListenLoop();
+                }, 5000);
+            }
+
+            function endCall(playTone) {
+                stopAll = true;
+                try { window.speechSynthesis.cancel(); } catch (_) { }
+                setMode("ENDED");
+                stopListening();
+                if (playTone) playCallEndedTone();
+            }
+
+            function backToDial() {
+                digits = "";
+                renderNumber();
+                hintView.textContent = "10 digit number dial karo. (Keyboard: 0-9, Backspace, Enter)";
+                stopAll = false;
+                setMode("DIAL");
+            }
+
+            // ===== Button events =====
+            document.querySelectorAll(".key").forEach(btn => {
+                btn.addEventListener("click", () => {
+                    const k = btn.dataset.k;
+                    if (/[0-9]/.test(k)) addDigit(k);
+                });
+            });
+            backBtn.addEventListener("click", backspace);
+            clearBtn.addEventListener("click", clearAll);
+            callBtn.addEventListener("click", startCall);
+
+            endBtn.addEventListener("click", () => {
+                if (mode === "RINGING" || mode === "LIVE") endCall(true);
+                else if (mode === "ENDED") backToDial();
+            });
+
+            // ===== Keyboard support =====
+            window.addEventListener("keydown", (e) => {
+                // avoid messing when user is typing in any input (here none, but safe)
+                const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+                if (tag === "input" || tag === "textarea") return;
+
+                if (mode === "DIAL") {
+                    if (e.key >= "0" && e.key <= "9") { addDigit(e.key); }
+                    else if (e.key === "Backspace") { backspace(); }
+                    else if (e.key === "Enter") { if (!callBtn.disabled) startCall(); }
+                    else if (e.key === "Escape") { /* nothing in dial */ }
+                } else {
+                    // In call screens
+                    if (e.key === "Escape") {
+                        if (mode === "RINGING" || mode === "LIVE") endCall(true);
+                        else if (mode === "ENDED") backToDial();
+                    }
+                }
+            });
+
+            // init
+            renderNumber();
+            setMode("DIAL");
+        })();
+    </script>
+</body>
+
+</html>
